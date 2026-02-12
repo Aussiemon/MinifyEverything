@@ -2,6 +2,7 @@
 using System;
 using System.Reflection;
 using System.Linq;
+using System.Xml;
 using Verse;
 using HarmonyLib;
 using UnityEngine;
@@ -13,6 +14,11 @@ using Verse.AI;
 namespace MinifyEverything
 {
     using JetBrains.Annotations;
+
+    public class MinifyThingConfigurableTick : MinifiedThing, IThingHolderTickable
+    {
+        public bool ShouldTickContents => MinifyMod.instance.Settings.tickMinified;
+    }
 
     internal class MinifySettings : ModSettings
     {
@@ -60,7 +66,8 @@ namespace MinifyEverything
             harmony.Patch(AccessTools.Method(typeof(WorkGiver_ConstructDeliverResourcesToBlueprints), nameof(WorkGiver_Scanner.JobOnThing)),
                           new HarmonyMethod(typeof(MinifyEverything), nameof(MinifyEverything.JobOnThingPrefix)));
             harmony.Patch(AccessTools.EnumeratorMoveNext(AccessTools.Method(typeof(ThingDef), nameof(ThingDef.ConfigErrors))), transpiler: new HarmonyMethod(typeof(MinifyEverything), nameof(MinifyEverything.ConfigErrorTranspiler)));
-            harmony.Patch(AccessTools.Method(typeof(ThingOwner), nameof(ThingOwner.DoTick)), new HarmonyMethod(typeof(MinifyEverything), nameof(MinifyEverything.ThingOwnerTickPrefix)));
+            harmony.Patch(AccessTools.Method(typeof(BackCompatibility), nameof(BackCompatibility.GetBackCompatibleType)),
+                          prefix: new HarmonyMethod(typeof(MinifyEverything), nameof(MinifyEverything.BackCompatibilityPrefix)));
         }
 
         internal MinifySettings Settings => this.settings ??= this.GetSettings<MinifySettings>();
@@ -238,7 +245,7 @@ namespace MinifyEverything
 
         public static void GenerateImpliedDefsPostfix()
         {
-            minified        = ThingDefOf.MinifiedThing;
+            minified        = DefDatabase<ThingDef>.GetNamed("MinifyThingConfigurableTick");
             defaultCategory = ThingCategoryDef.Named("BuildingsMisc");
 
             if (!MinifyMod.listHandledByOtherMod)
@@ -377,8 +384,22 @@ namespace MinifyEverything
             }
         }
 
-        public static bool ThingOwnerTickPrefix(IThingHolder ___owner) => 
-            ___owner is not MinifiedThing || MinifyMod.instance.Settings.tickMinified;
+        public static bool BackCompatibilityPrefix(Type baseType, string providedClassName, XmlNode? node, ref Type? __result)
+        {
+            if (node is null
+                  || providedClassName is not (nameof(MinifiedThing) or "RimWorld.MinifiedThing")
+                  || node["innerContainer"]?["innerList"]?.FirstChild?["def"]?.InnerText is not { } loadedDefName
+                  || DefDatabase<ThingDef>.GetNamedSilentFail(loadedDefName)?.minifiedDef?.defName is not { } intendedMiniDefName
+                  || intendedMiniDefName is not ("MinifyThingConfigurableTick" or "MinifyEverything.MinifyThingConfigurableTick")
+               )
+            {
+                return true;
+            }
+
+            Log.Message(loadedDefName + " : converted MinifiedThing to " + intendedMiniDefName);
+            __result = typeof(MinifyThingConfigurableTick);
+            return false;
+        }
 
         public static void AfterInstall(Thing createdThing)
         { 
