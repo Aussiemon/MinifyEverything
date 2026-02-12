@@ -2,6 +2,7 @@
 using System;
 using System.Reflection;
 using System.Linq;
+using System.Xml;
 using Verse;
 using HarmonyLib;
 using UnityEngine;
@@ -65,6 +66,8 @@ namespace MinifyEverything
             harmony.Patch(AccessTools.Method(typeof(WorkGiver_ConstructDeliverResourcesToBlueprints), nameof(WorkGiver_Scanner.JobOnThing)),
                           new HarmonyMethod(typeof(MinifyEverything), nameof(MinifyEverything.JobOnThingPrefix)));
             harmony.Patch(AccessTools.EnumeratorMoveNext(AccessTools.Method(typeof(ThingDef), nameof(ThingDef.ConfigErrors))), transpiler: new HarmonyMethod(typeof(MinifyEverything), nameof(MinifyEverything.ConfigErrorTranspiler)));
+            harmony.Patch(AccessTools.Method(typeof(BackCompatibility), nameof(BackCompatibility.GetBackCompatibleType)),
+                          prefix: new HarmonyMethod(typeof(MinifyEverything), nameof(MinifyEverything.BackCompatibilityPrefix)));
         }
 
         internal MinifySettings Settings => this.settings ??= this.GetSettings<MinifySettings>();
@@ -379,6 +382,82 @@ namespace MinifyEverything
                 if (instruction.Calls(implicitConverter) && instructionList[i + 1].opcode == OpCodes.Ldc_I4_1)
                     instructionList[i                                                                                   + 1].opcode = OpCodes.Ldc_I4_2;
             }
+        }
+
+        //public static bool BackCompatibilityPrefix(Type baseType, string providedClassName, XmlNode? node, ref Type? __result)
+        //{
+        //    if (node is null
+        //          || providedClassName is not (nameof(MinifiedThing) or "RimWorld.MinifiedThing")
+        //          || node["innerContainer"]?["innerList"]?.FirstChild?["def"]?.InnerText is not { } loadedDefName
+        //          || DefDatabase<ThingDef>.GetNamedSilentFail(loadedDefName)?.minifiedDef?.defName is not { } intendedMiniDefName
+        //          || intendedMiniDefName is not ("MinifyThingConfigurableTick" or "MinifyEverything.MinifyThingConfigurableTick")
+        //       )
+        //    {
+        //        return true;
+        //    }
+
+        //    Log.Warning(defName + " : converted MinifiedThing to " + intendedMinifiedDef);
+        //    __result = typeof(MinifyThingConfigurableTick);
+        //    return false;
+        //}
+
+        public static bool BackCompatibilityPrefix(Type baseType, string providedClassName, XmlNode? node, ref Type? __result)
+        {
+
+
+            if (node is null) {
+                return true;
+            }
+
+            if (providedClassName is not (nameof(MinifiedThing) or "RimWorld.MinifiedThing"))
+            {
+                return true;
+            }
+
+            XmlNode innerContainer = node["innerContainer"];
+            if (innerContainer is null)
+            {
+                return true;
+            }
+
+            XmlNode innerList = innerContainer["innerList"];
+            if (innerList is null)
+            {
+                return true;
+            }
+
+            XmlNode firstChild = innerList.FirstChild;
+            if (firstChild is null)
+            {
+                return true;
+            }
+
+            XmlNode def = firstChild["def"];
+            if (def is null)
+            {
+                return true;
+            }
+
+            string defName = def.InnerText;
+            if (defName is null)
+            {
+                return true;
+            }
+
+            string intendedMinifiedDef = DefDatabase<ThingDef>.GetNamedSilentFail(defName)?.minifiedDef?.defName;
+            if (intendedMinifiedDef is null)
+            {
+                return true;
+            }
+
+            if (intendedMinifiedDef is not ("MinifyThingConfigurableTick" or "MinifyEverything.MinifyThingConfigurableTick"))
+            {
+                return true;
+            }
+
+            Log.Warning(defName + " : converted MinifiedThing to " + intendedMinifiedDef);
+            __result = typeof(MinifyThingConfigurableTick);
+            return false;
         }
 
         public static void AfterInstall(Thing createdThing)
