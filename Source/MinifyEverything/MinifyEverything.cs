@@ -384,78 +384,19 @@ namespace MinifyEverything
             }
         }
 
-        //public static bool BackCompatibilityPrefix(Type baseType, string providedClassName, XmlNode? node, ref Type? __result)
-        //{
-        //    if (node is null
-        //          || providedClassName is not (nameof(MinifiedThing) or "RimWorld.MinifiedThing")
-        //          || node["innerContainer"]?["innerList"]?.FirstChild?["def"]?.InnerText is not { } loadedDefName
-        //          || DefDatabase<ThingDef>.GetNamedSilentFail(loadedDefName)?.minifiedDef?.defName is not { } intendedMiniDefName
-        //          || intendedMiniDefName is not ("MinifyThingConfigurableTick" or "MinifyEverything.MinifyThingConfigurableTick")
-        //       )
-        //    {
-        //        return true;
-        //    }
-
-        //    Log.Warning(defName + " : converted MinifiedThing to " + intendedMinifiedDef);
-        //    __result = typeof(MinifyThingConfigurableTick);
-        //    return false;
-        //}
-
         public static bool BackCompatibilityPrefix(Type baseType, string providedClassName, XmlNode? node, ref Type? __result)
         {
-
-
-            if (node is null) {
-                return true;
-            }
-
-            if (providedClassName is not (nameof(MinifiedThing) or "RimWorld.MinifiedThing"))
+            if (node is null
+                  || providedClassName is not (nameof(MinifiedThing) or "RimWorld.MinifiedThing")
+                  || node["innerContainer"]?["innerList"]?.FirstChild?["def"]?.InnerText is not { } loadedDefName
+                  || DefDatabase<ThingDef>.GetNamedSilentFail(loadedDefName)?.minifiedDef?.defName is not { } intendedMiniDefName
+                  || intendedMiniDefName is not ("MinifyThingConfigurableTick" or "MinifyEverything.MinifyThingConfigurableTick")
+               )
             {
                 return true;
             }
 
-            XmlNode innerContainer = node["innerContainer"];
-            if (innerContainer is null)
-            {
-                return true;
-            }
-
-            XmlNode innerList = innerContainer["innerList"];
-            if (innerList is null)
-            {
-                return true;
-            }
-
-            XmlNode firstChild = innerList.FirstChild;
-            if (firstChild is null)
-            {
-                return true;
-            }
-
-            XmlNode def = firstChild["def"];
-            if (def is null)
-            {
-                return true;
-            }
-
-            string defName = def.InnerText;
-            if (defName is null)
-            {
-                return true;
-            }
-
-            string intendedMinifiedDef = DefDatabase<ThingDef>.GetNamedSilentFail(defName)?.minifiedDef?.defName;
-            if (intendedMinifiedDef is null)
-            {
-                return true;
-            }
-
-            if (intendedMinifiedDef is not ("MinifyThingConfigurableTick" or "MinifyEverything.MinifyThingConfigurableTick"))
-            {
-                return true;
-            }
-
-            Log.Warning(defName + " : converted MinifiedThing to " + intendedMinifiedDef);
+            Log.Message(loadedDefName + " : converted MinifiedThing to " + intendedMiniDefName);
             __result = typeof(MinifyThingConfigurableTick);
             return false;
         }
