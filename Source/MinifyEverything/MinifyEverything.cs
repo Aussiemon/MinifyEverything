@@ -14,6 +14,11 @@ namespace MinifyEverything
 {
     using JetBrains.Annotations;
 
+    public class MinifyThingConfigurableTick : MinifiedThing, IThingHolderTickable
+    {
+        public bool ShouldTickContents => MinifyMod.instance.Settings.tickMinified;
+    }
+
     internal class MinifySettings : ModSettings
     {
         public bool           tickMinified    = false;
@@ -60,7 +65,6 @@ namespace MinifyEverything
             harmony.Patch(AccessTools.Method(typeof(WorkGiver_ConstructDeliverResourcesToBlueprints), nameof(WorkGiver_Scanner.JobOnThing)),
                           new HarmonyMethod(typeof(MinifyEverything), nameof(MinifyEverything.JobOnThingPrefix)));
             harmony.Patch(AccessTools.EnumeratorMoveNext(AccessTools.Method(typeof(ThingDef), nameof(ThingDef.ConfigErrors))), transpiler: new HarmonyMethod(typeof(MinifyEverything), nameof(MinifyEverything.ConfigErrorTranspiler)));
-            harmony.Patch(AccessTools.Method(typeof(ThingOwner), nameof(ThingOwner.DoTick)), new HarmonyMethod(typeof(MinifyEverything), nameof(MinifyEverything.ThingOwnerTickPrefix)));
         }
 
         internal MinifySettings Settings => this.settings ??= this.GetSettings<MinifySettings>();
@@ -238,7 +242,7 @@ namespace MinifyEverything
 
         public static void GenerateImpliedDefsPostfix()
         {
-            minified        = ThingDefOf.MinifiedThing;
+            minified        = DefDatabase<ThingDef>.GetNamed("MinifyThingConfigurableTick");
             defaultCategory = ThingCategoryDef.Named("BuildingsMisc");
 
             if (!MinifyMod.listHandledByOtherMod)
@@ -376,9 +380,6 @@ namespace MinifyEverything
                     instructionList[i                                                                                   + 1].opcode = OpCodes.Ldc_I4_2;
             }
         }
-
-        public static bool ThingOwnerTickPrefix(IThingHolder ___owner) => 
-            ___owner is not MinifiedThing || MinifyMod.instance.Settings.tickMinified;
 
         public static void AfterInstall(Thing createdThing)
         { 
