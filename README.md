@@ -6,6 +6,7 @@ This mod has a couple differences from the original:
 
 - Pre-existing minifiable objects are free to tick or not tick with their author's intent. This allows Vanilla behavior like batteries discharging while minified.
 - Minified objects added by this fork are now a custom subclass of `MinifiedThing`. This lets them selectively disable ticking depending on Minify Everything's "allow ticking buildings" setting. When loading a save, newly-added minified objects are automatically converted to the custom subclass. Pre-allowed minified objects are unaffected by this fork.
+- Using this custom subclass aligns with Vanilla's method of disabling ticking, and it allows us to avoid the Harmony patch that runs on every thing for every tick.
 
 ### Compatibility:
 
